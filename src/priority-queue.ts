@@ -1,3 +1,7 @@
+import {
+    FilteredKeys
+} from './type-utilities';
+
 interface HeapNodeValue<T> {
     readonly key: number;
     readonly value: T;
@@ -203,30 +207,39 @@ function heapBubbleDown<T>(node: HeapNode<T>, replace: { key: number, value: T }
 
 export default class PriorityQueue<T> {
     private readonly Root: HeapNode<T>;
+    private readonly KeyName: FilteredKeys<T, number>;
 
-    public constructor();
-    public constructor(root: HeapNode<T>);
-    public constructor(root: HeapNode<T> = undefined) {
+    public constructor(keyName: FilteredKeys<T, number>);
+    public constructor(keyName: FilteredKeys<T, number>, root: HeapNode<T>);
+    public constructor(keyName: FilteredKeys<T, number>, root: HeapNode<T> = undefined) {
         this.Root = root;
+        this.KeyName = keyName;
     }
 
-    public insert(key: number, value: T): PriorityQueue<T> {
-        return new PriorityQueue(heapInsert(this.Root, key, value));
+    public insert(value: T): PriorityQueue<T> {
+        const key = (value[this.KeyName]) as unknown as number;
+        const heap = heapInsert<T>(this.Root, key, value);
+        return new PriorityQueue(this.KeyName, heap);
     }
 
-    public peekKey(): number {
+    public peek(): T | undefined {
         if(this.Root === undefined)
-            return NaN;
+            return undefined;
         
-        return this.Root.key;
+        return this.Root.value;
     }
 
-    public dequeue(): { queue: PriorityQueue<T>, value?: T } {
-        const { node: heap, value } = heapExtract(this.Root);
-        return {
-            queue: new PriorityQueue(heap),
-            value,
-        }
+    public dequeue(): PriorityQueue<T> {
+        const { node: heap } = heapExtract(this.Root);
+        return new PriorityQueue(this.KeyName, heap);
+    }
+
+    public insertRange(items: T[]): PriorityQueue<T> {
+        let queue: PriorityQueue<T> = this;
+        items.forEach(item => {
+            queue = queue.insert(item);
+        });
+        return queue;
     }
 
     get count(): number {
