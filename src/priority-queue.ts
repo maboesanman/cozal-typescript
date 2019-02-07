@@ -3,7 +3,7 @@ import {
 } from './type-utilities';
 
 interface HeapNodeValue<T> {
-    readonly key: number;
+    readonly keys: number[];
     readonly value: T;
     readonly count: number;
     readonly left?: HeapNode<T>;
@@ -11,48 +11,67 @@ interface HeapNodeValue<T> {
 }
 
 type HeapNode<T> = HeapNodeValue<T> | undefined;
+function lessThan(keys1: number[], keys2: number[]) {
+    let i = 0;
+    while(true) {
+        let key1 = 0;
+        if(i < keys1.length && keys1[i] != undefined)
+            key1 = keys1[i];
 
-function heapInsert<T>(node: HeapNode<T>, key: number, value: T) : HeapNode<T> {
+        let key2 = 0;
+        if(i < keys2.length && keys2[i] != undefined)
+            key2 = keys2[i];
+
+        if(key1 != key2)
+            return key1 < key2;
+
+        if(i >= keys1.length && i >= keys2.length)
+            return false; // equal
+
+        i = i + 1;
+    }
+}
+function heapInsert<T>(node: HeapNode<T>, keys: number[], value: T) : HeapNode<T> {
     if(node === undefined)
-        return { count: 1, key, value };
+        return { count: 1, keys: keys, value };
     
     // convert the count + 1 to binary, and the digits after the first 1 represent
     // the position the new element should be inserted
     const direction = (node.count + 1).toString(2)[1];
     if(direction === '0') {
-        if(key < node.key) {
+        if(lessThan(keys, node.keys)) {
             return {
-                key,
+                keys: keys,
                 value,
                 count: node.count + 1,
-                left: heapInsert(node.left, node.key, node.value),
+                left: heapInsert(node.left, node.keys, node.value),
                 right: node.right,
             }
         } else {
             return {
-                key: node.key,
+                keys: node.keys,
                 value: node.value,
                 count: node.count + 1,
-                left: heapInsert(node.left, key, value),
+                left: heapInsert(node.left, keys, value),
                 right: node.right,
             }
         }
     } else {
-        if(key < node.key) {
+        if(lessThan(keys, node.keys)) {
             return {
-                key,
+                keys: keys,
                 value,
                 count: node.count + 1,
                 left: node.left,
-                right: heapInsert(node.right, node.key, node.value),
+                right: heapInsert(node.right, node.keys, node.value),
             }
         } else {
             return {
-                key: node.key,
+                keys: node.keys,
                 value: node.value,
                 count: node.count + 1,
                 left: node.left,
-                right: heapInsert(node.right, key, value),
+                right: heapInsert(node.right, keys, value),
             }
         }
     }
@@ -60,7 +79,7 @@ function heapInsert<T>(node: HeapNode<T>, key: number, value: T) : HeapNode<T> {
 
 function heapExtract<T>(node: HeapNode<T>): {
     node: HeapNode<T>;
-    key?: number;
+    keys?: number[];
     value?: T | undefined;
 } {
     if(node === undefined)
@@ -70,43 +89,43 @@ function heapExtract<T>(node: HeapNode<T>): {
     const bubbleDirection = heapGetBubbleDownDirection(node);
 
     if(removeDirection === bubbleDirection && removeDirection === "Left") {
-        const {node: left, key, value} = heapExtract(node.left);
+        const {node: left, keys, value} = heapExtract(node.left);
         return {
             node: {
                 ...node,
                 count: node.count - 1,
                 left,
             },
-            key,
+            keys,
             value,
         }
     }
     if(removeDirection === bubbleDirection && removeDirection === "Right") {
-        const {node: right, key, value} = heapExtract(node.right);
+        const {node: right, keys, value} = heapExtract(node.right);
         return {
             node: {
                 ...node,
                 count: node.count - 1,
                 right,
             },
-            key,
+            keys,
             value,
         }
     }
 
-    const {node: lastNode, key, value} = heapRemoveLast(node);
-    const newNode = heapBubbleDown(lastNode, { key, value });
+    const {node: lastNode, keys, value} = heapRemoveLast(node);
+    const newNode = heapBubbleDown(lastNode, { keys, value });
 
     return {
         node: newNode,
-        key: node.key,
+        keys: node.keys,
         value: node.value,
     }
 }
 
 function heapRemoveLast<T>(node: HeapNode<T>): {
     node?: HeapNode<T>;
-    key: number;
+    keys: number[];
     value: T;
 } {
     if(node === undefined)
@@ -114,7 +133,7 @@ function heapRemoveLast<T>(node: HeapNode<T>): {
 
     if(node.count === 1) {
         return {
-            key: node.key,
+            keys: node.keys,
             value: node.value
         }
     }
@@ -122,83 +141,85 @@ function heapRemoveLast<T>(node: HeapNode<T>): {
     // the position the new element should be inserted
     const direction = (node.count).toString(2)[1];
     if(direction === '0') { // Left
-        const {node: left, key, value } = heapRemoveLast(node.left);
+        const {node: left, keys, value } = heapRemoveLast(node.left);
         return {
             node: {
                 ...node,
                 count: node.count - 1,
                 left,
             },
-            key,
+            keys,
             value,
         }
     } else { // Right
-        const {node: right, key, value } = heapRemoveLast(node.right);
+        const {node: right, keys, value } = heapRemoveLast(node.right);
         return {
             node: {
                 ...node,
                 count: node.count - 1,
                 right,
             },
-            key,
+            keys,
             value,
         }
     }
 }
 
-function heapGetBubbleDownDirection<T>(node: HeapNode<T>, compareKey: number | undefined = undefined): "Left" | "Right" | "Neither" {
+function heapGetBubbleDownDirection<T>(node: HeapNode<T>, compareKeys: number[] | undefined = undefined): "Left" | "Right" | "Neither" {
     if(node === undefined)
         return "Neither";
 
-        let potentials: {
-            left?: number;
-            right?: number;
-        } = {};
+    let potentials: {
+        left?: number[];
+        right?: number[];
+    } = {};
+
+    const finalCompareKeys = compareKeys !== undefined ? compareKeys : node.keys;
     
-        if(node.left !== undefined && (compareKey || node.key) > node.left.key)
-            potentials.left = node.left.key;
-        
-        if(node.right !== undefined && (compareKey || node.key) > node.right.key)
-            potentials.right = node.right.key;
-        
-        if(potentials.left !== undefined && potentials.right !== undefined) {
-            if(potentials.left < potentials.right)
-                potentials.right = undefined;
-            else
-                potentials.left = undefined;
-        }
-        if(potentials.left !== undefined && potentials.right === undefined) {
-            return "Left";
-        }
-        if(potentials.left === undefined && potentials.right !== undefined) {
-            return "Right";
-        }
-        return "Neither";
+    if(node.left !== undefined && lessThan(node.left.keys, finalCompareKeys))
+        potentials.left = node.left.keys;
+    
+    if(node.right !== undefined && lessThan(node.right.keys, finalCompareKeys))
+        potentials.right = node.right.keys;
+    
+    if(potentials.left !== undefined && potentials.right !== undefined) {
+        if(lessThan(potentials.left, potentials.right))
+            potentials.right = undefined;
+        else
+            potentials.left = undefined;
+    }
+    if(potentials.left !== undefined && potentials.right === undefined) {
+        return "Left";
+    }
+    if(potentials.left === undefined && potentials.right !== undefined) {
+        return "Right";
+    }
+    return "Neither";
 }
 
-function heapBubbleDown<T>(node: HeapNode<T>, replace: { key: number, value: T } | undefined = undefined): HeapNode<T> {
+function heapBubbleDown<T>(node: HeapNode<T>, replace: { keys: number[], value: T } | undefined = undefined): HeapNode<T> {
     if(node === undefined)
         return undefined;
     
-    const compareKey = replace === undefined ? node.key : replace.key;
+    const compareKey = replace === undefined ? node.keys : replace.keys;
     const direction = heapGetBubbleDownDirection(node, compareKey); 
 
     switch (direction) {
         case "Left":
             return {
-                key: node.left!.key,
+                keys: node.left!.keys,
                 value: node.left!.value,
                 count: node.count,
-                left: heapBubbleDown(node.left, { key: node.key, value: node.value, ...replace} ),
+                left: heapBubbleDown(node.left, { keys: node.keys, value: node.value, ...replace} ),
                 right: node.right,
             };
         case "Right":
             return {
-                key: node.right!.key,
+                keys: node.right!.keys,
                 value: node.right!.value,
                 count: node.count,
                 left: node.left,
-                right: heapBubbleDown(node.right, { key: node.key, value: node.value, ...replace} ),
+                right: heapBubbleDown(node.right, { keys: node.keys, value: node.value, ...replace} ),
             };
         default:
             return { ...node, ...replace };
@@ -207,19 +228,24 @@ function heapBubbleDown<T>(node: HeapNode<T>, replace: { key: number, value: T }
 
 export default class PriorityQueue<T> {
     private readonly Root: HeapNode<T>;
-    private readonly KeyName: FilteredKeys<T, number>;
+    private readonly KeyNames: FilteredKeys<T, number | undefined>[];
 
-    public constructor(keyName: FilteredKeys<T, number>);
-    public constructor(keyName: FilteredKeys<T, number>, root: HeapNode<T>);
-    public constructor(keyName: FilteredKeys<T, number>, root: HeapNode<T> = undefined) {
-        this.Root = root;
-        this.KeyName = keyName;
+    public constructor(...keyNames: FilteredKeys<T, number | undefined>[]) {
+        this.Root = undefined;
+        this.KeyNames = keyNames;
+    }
+
+    private static fromRoot<T>(root: HeapNode<T>, keyNames: FilteredKeys<T, number | undefined>[]): PriorityQueue<T> {
+        // manually assign to readonly property. this is an alternate private constructor.
+        const result = new PriorityQueue<T>(...keyNames) as any;
+        result.Root = root;
+        return result as PriorityQueue<T>;
     }
 
     public insert(value: T): PriorityQueue<T> {
-        const key = (value[this.KeyName]) as unknown as number;
-        const heap = heapInsert<T>(this.Root, key, value);
-        return new PriorityQueue(this.KeyName, heap);
+        const keys = this.KeyNames.map((keyName) => (value[keyName]) as unknown as number);
+        const heap = heapInsert<T>(this.Root, keys, value);
+        return PriorityQueue.fromRoot(heap, this.KeyNames);
     }
 
     public peek(): T | undefined {
@@ -231,7 +257,7 @@ export default class PriorityQueue<T> {
 
     public dequeue(): PriorityQueue<T> {
         const { node: heap } = heapExtract(this.Root);
-        return new PriorityQueue(this.KeyName, heap);
+        return PriorityQueue.fromRoot(heap, this.KeyNames);
     }
 
     public insertRange(items: T[]): PriorityQueue<T> {
@@ -260,7 +286,7 @@ export default class PriorityQueue<T> {
             if(currentNode !== undefined) {
                 bfsqueue.push(currentNode.left);
                 bfsqueue.push(currentNode.right);
-                currentItems.push(currentNode.key);
+                currentItems.push(currentNode.keys);
                 count = count + 1;
                 if(count == rowLength) {
                     console.log(currentItems);
