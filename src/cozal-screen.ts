@@ -10,6 +10,8 @@ abstract class CozalScreen<State, Props> {
         const {state, events, soundCalls, renderCalls} = this.Init(props);
         this.State = state;
         this.Events = new PriorityQueue<CozalEvent>("time").insertRange(events);
+        this.BridgeSoundCalls(soundCalls);
+        this.BridgeRenderCalls(renderCalls);
     }
 
     //#region User Supplied Functions
@@ -32,16 +34,26 @@ abstract class CozalScreen<State, Props> {
     //#endregion
 
     private RunUpdate(time: number): void {
+        const allSoundCalls: CozalSoundCall[] = [];
         while(this.Events.peek() != undefined && this.Events.peek()!.time <= time) {
             const {state, events, soundCalls} = this.Update(this.State, this.Events.peek()!, time);
             this.State = state;
             this.Events = this.Events.insertRange(events);
-
+            allSoundCalls.concat(soundCalls);
         }
+        this.BridgeSoundCalls(allSoundCalls);
     }
 
     private RunRender(time: number): void {
         const {renderCalls} = this.Render(this.State, time);
+        this.BridgeRenderCalls(renderCalls);
+    }
+
+    private BridgeSoundCalls(soundCalls: CozalSoundCall[]) {
+        console.log(soundCalls);
+    }
+    private BridgeRenderCalls(renderCalls: CozalRenderCall[]) {
+        console.log(renderCalls);
     }
 }
 
