@@ -225,17 +225,23 @@ function heapBubbleDown<T>(node: HeapNode<T>, replace: { keys: number[], value: 
             return { ...node, ...replace };
     }
 }
+type KeyName<T> = FilteredKeys<T, number | undefined>;
+type KeyTuple<T> = [KeyName<T>, "ascending" | "descending"];
 
 export default class PriorityQueue<T> {
     private readonly Root: HeapNode<T>;
-    private readonly KeyNames: FilteredKeys<T, number | undefined>[];
+    private readonly KeyNames: KeyTuple<T>[];
 
-    public constructor(...keyNames: FilteredKeys<T, number | undefined>[]) {
+    public constructor(...keyNames: (KeyName<T> | KeyTuple<T>)[]) {
         this.Root = undefined;
-        this.KeyNames = keyNames;
+        this.KeyNames = keyNames.map(keyName => {
+            if(Array.isArray(keyName))
+                return keyName;
+            return [keyName, "ascending"] as KeyTuple<T>;
+        });
     }
 
-    private static fromRoot<T>(root: HeapNode<T>, keyNames: FilteredKeys<T, number | undefined>[]): PriorityQueue<T> {
+    private static fromRoot<T>(root: HeapNode<T>, keyNames: KeyTuple<T>[]): PriorityQueue<T> {
         // manually assign to readonly property. this is an alternate private constructor.
         const result = new PriorityQueue<T>(...keyNames) as any;
         result.Root = root;
@@ -243,7 +249,12 @@ export default class PriorityQueue<T> {
     }
 
     public insert(value: T): PriorityQueue<T> {
-        const keys = this.KeyNames.map((keyName) => (value[keyName]) as unknown as number);
+        const keys = this.KeyNames.map((keyName) => {
+            if(keyName[1] === "ascending")
+                return (value[keyName[0]]) as unknown as number
+            else
+                return (-value[keyName[0]]) as unknown as number
+        });
         const heap = heapInsert<T>(this.Root, keys, value);
         return PriorityQueue.fromRoot(heap, this.KeyNames);
     }
