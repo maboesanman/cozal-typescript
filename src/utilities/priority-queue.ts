@@ -1,6 +1,11 @@
-import {
-    FilteredKeys
-} from './type-utilities';
+type FilterFlags<Base, Condition> = {
+    [Key in keyof Base]: 
+        Base[Key] extends Condition ? Key : never
+};
+
+// keys which map to numbers
+type FilteredKeys<Base, Condition> = 
+    FilterFlags<Base, Condition>[keyof Base];
 
 interface HeapNodeValue<T> {
     readonly keys: number[];
